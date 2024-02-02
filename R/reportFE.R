@@ -108,8 +108,6 @@ reportFE <- function(gdx, regionSubsetList = NULL,
   }
 
 
-
-
   # temporary backwards compatability: this can be removed, once a new test gdx after March 2021 is used
   if ("seliqsyn" %in% getNames(vm_prodFe, dim=1)) {
     seliq <- c("seliqfos","seliqbio","seliqsyn")
@@ -621,6 +619,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
     out <- mbind(out,
       setNames(dimSums(vm_cesIO[,, names(carrierBuildHeating)], dim = 3, na.rm = TRUE),
                "FE|Buildings|Heating (EJ/yr)"))
+
 
     # UE demand in buildings for each carrier
     # this buildings realisation only works on a FE level but the UE demand is
@@ -1961,17 +1960,20 @@ reportFE <- function(gdx, regionSubsetList = NULL,
                                   "FE|w/o Non-energy Use|Liquids|+|Hydrogen (EJ/yr)")
   }
 
+  ### Global values and region aggregation ----
+
   # add global values
-  out <- mbind(out,dimSums(out,dim=1))
+  out <- mbind(out,dimSums(out, dim=1))
   # add other region aggregations
   if (!is.null(regionSubsetList))
     out <- mbind(out, calc_regionSubset_sums(out, regionSubsetList))
 
 
 
-
   ### Further Variable Calculations ----
 
+  # all variables for which the global aggregate should not be determined by
+  # summation need to be computed here
 
 
   # add per sector electricity share (for SDG targets)
@@ -2038,6 +2040,49 @@ reportFE <- function(gdx, regionSubsetList = NULL,
         ) * 1e3,
         'FE|Industry|Specific Energy Consumption|Other Industry (MJ/US$2005)')
     )
+  }
+
+  ## per Capita variables in the buildings sector
+  if (buil_mod == "simple") {
+    # extract population to compute per capita quantities
+    pop <- readPopulation(gdx)[, getItems(out, dim = 2), ]
+    pop <- mbind(pop, dimSums(pop, dim = 1))
+
+    # Per capita FE demand in buildings for each carrier; available carriers are defined above.
+    # (electricity split: heat pumps, resistive heating, rest)
+    for (c in names(carrierBuild)) {
+      out <- mbind(out, setNames(
+        out[,, carrierBuild[c]]
+        / pop[,, "population [million]"] * 1e3,
+        gsub("\\(EJ/yr\\)$", "pCap (GJ/cap/yr)", carrierBuild[c]))
+      )
+    }
+
+    # Per capita total heating FE demand
+    out <- mbind(out,
+                 setNames(
+                   out[,, "FE|Buildings|Heating (EJ/yr)"]
+                   / pop[,, "population [million]"] * 1e3,
+                   "FE|Buildings|Heating pCap (GJ/cap/yr)"
+                 ))
+
+    # Per capita UE demand in buildings for each carrier
+    out <- mbind(out, setNames(
+      out[,, getItems(uedemand_build, dim = 3)] / pop[,, "population [million]"],
+      gsub("\\(EJ/yr\\)$", "pCap (GJ/cap/yr)", getItems(uedemand_build, dim = 3))
+    ))
+
+    # Per capita UE demand in buildings for heating
+    out <- mbind(out, setNames(
+      out[,, "UE|Buildings|Heating (EJ/yr)"] / pop[,, "population [million]"],
+      "UE|Buildings|Heating pCap (GJ/cap/yr)"
+    ))
+
+    # Total per capita UE demand in buildings
+    out <- mbind(out, setNames(
+      out[,, "UE|Buildings (EJ/yr)"] / pop[,, "population [million]"],
+      "UE|Buildings pCap (GJ/cap/yr)"
+    ))
   }
 
   getSets(out)[3] <- "variable"
