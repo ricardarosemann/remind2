@@ -2068,19 +2068,21 @@ reportFE <- function(gdx, regionSubsetList = NULL,
 
     # Per capita UE demand in buildings for each carrier
     out <- mbind(out, setNames(
-      out[,, getItems(uedemand_build, dim = 3)] / pop[,, "population [million]"],
+      out[,, getItems(uedemand_build, dim = 3)]
+      / pop[,, "population [million]"] * 1e3,
       gsub("\\(EJ/yr\\)$", "pCap (GJ/cap/yr)", getItems(uedemand_build, dim = 3))
     ))
 
     # Per capita UE demand in buildings for heating
     out <- mbind(out, setNames(
-      out[,, "UE|Buildings|Heating (EJ/yr)"] / pop[,, "population [million]"],
+      out[,, "UE|Buildings|Heating (EJ/yr)"]
+      / pop[,, "population [million]"] * 1e3,
       "UE|Buildings|Heating pCap (GJ/cap/yr)"
     ))
 
     # Total per capita UE demand in buildings
     out <- mbind(out, setNames(
-      out[,, "UE|Buildings (EJ/yr)"] / pop[,, "population [million]"],
+      out[,, "UE|Buildings (EJ/yr)"] / pop[,, "population [million]"] * 1e3,
       "UE|Buildings pCap (GJ/cap/yr)"
     ))
   }
